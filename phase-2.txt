@@ -1,0 +1,102 @@
+phase_2を見ていく.
+第一引数は入力文字列
+--------------------------------------------------------------
+(gdb) disas phase_2
+
+   0x08048b50 <+8>: mov    0x8(%ebp),%edx
+   0x08048b53 <+11>:  add    $0xfffffff8,%esp
+   0x08048b56 <+14>:  lea    -0x18(%ebp),%eax
+   0x08048b59 <+17>:  push   %eax
+   0x08048b5a <+18>:  push   %edx
+   0x08048b5b <+19>:  call   0x8048fd8 <read_six_numbers>
+--------------------------------------------------------------
+より第一引数には入力文字列が、第二引数にはアドレス %ebp-0x18 (= 0xbffff680)が格納される.
+続いてread_six_numbers関数をみていく.
+--------------------------------------------------------------
+(gdb) disas read_six_numbers
+Dump of assembler code for function read_six_numbers:
+   0x08048fd8 <+0>: push   %ebp
+   0x08048fd9 <+1>: mov    %esp,%ebp
+   0x08048fdb <+3>: sub    $0x8,%esp
+   0x08048fde <+6>: mov    0x8(%ebp),%ecx
+   0x08048fe1 <+9>: mov    0xc(%ebp),%edx
+   0x08048fe4 <+12>:  lea    0x14(%edx),%eax
+   0x08048fe7 <+15>:  push   %eax
+   0x08048fe8 <+16>:  lea    0x10(%edx),%eax
+   0x08048feb <+19>:  push   %eax
+   0x08048fec <+20>:  lea    0xc(%edx),%eax
+   0x08048fef <+23>:  push   %eax
+   0x08048ff0 <+24>:  lea    0x8(%edx),%eax
+   0x08048ff3 <+27>:  push   %eax
+   0x08048ff4 <+28>:  lea    0x4(%edx),%eax
+   0x08048ff7 <+31>:  push   %eax
+   0x08048ff8 <+32>:  push   %edx
+   0x08048ff9 <+33>:  push   $0x8049b1b
+   0x08048ffe <+38>:  push   %ecx
+   0x08048fff <+39>:  call   0x8048860 <sscanf@plt>
+   0x08049004 <+44>:  add    $0x20,%esp
+   0x08049007 <+47>:  cmp    $0x5,%eax
+   0x0804900a <+50>:  jg     0x8049011 <read_six_numbers+57>
+   0x0804900c <+52>:  call   0x80494fc <explode_bomb>
+   0x08049011 <+57>:  mov    %ebp,%esp
+   0x08049013 <+59>:  pop    %ebp
+   0x08049014 <+60>:  ret 
+--------------------------------------------------------------
+%ecxには入力した文字列が格納され,%edxには0xbffff680が格納される.
+0x08048fe4から0x08048ffeまでは関数sscanfを呼び出すためにスタックにpushしている.
+最終的に sscanf(%ecx, "%d %d %d %d %d %d", 0xbffff680, 0xbffff684,..., 0xbffff694) が呼び出される.
+つまり入力文字列をintとしてメモリに格納していく.
+最後は cmp $0x5,%eaxで正しく6個の数値が入力されたことを確認している.
+再びphase_2をみていく.
+--------------------------------------------------------------
+(gdb) disas phase_2
+
+   0x08048b63 <+27>:  cmpl   $0x1,-0x18(%ebp)
+   0x08048b67 <+31>:  je     0x8048b6e <phase_2+38>
+   0x08048b69 <+33>:  call   0x80494fc <explode_bomb>
+   0x08048b6e <+38>:  mov    $0x1,%ebx
+   0x08048b73 <+43>:  lea    -0x18(%ebp),%esi
+   0x08048b76 <+46>:  lea    0x1(%ebx),%eax
+   0x08048b79 <+49>:  imul   -0x4(%esi,%ebx,4),%eax
+   0x08048b7e <+54>:  cmp    %eax,(%esi,%ebx,4)
+   0x08048b81 <+57>:  je     0x8048b88 <phase_2+64>
+   0x08048b83 <+59>:  call   0x80494fc <explode_bomb>
+   0x08048b88 <+64>:  inc    %ebx
+   0x08048b89 <+65>:  cmp    $0x5,%ebx
+   0x08048b8c <+68>:  jle    0x8048b76 <phase_2+46>
+   0x08048b8e <+70>:  lea    -0x28(%ebp),%esp
+   0x08048b91 <+73>:  pop    %ebx
+   0x08048b92 <+74>:  pop    %esi
+   0x08048b93 <+75>:  mov    %ebp,%esp
+   0x08048b95 <+77>:  pop    %ebp
+   0x08048b96 <+78>:  ret    
+--------------------------------------------------------------
+cmpl $0x1,-0x18(%ebp)(= 0xbffff680) より１つ目は "1" が正解.
+続いて,0x08048b76まで実行すると, %eax = 0x02, %ebx = 0x01, %esi = 0xbffff680 となる.
+0x08048b79を実行すると Mem[%esi + 4 * %ebx - 0x4] = Mem[0xbffff680] = 0x01 より,
+%eax = 0x02 となる.
+cmp %eax,(%esi,%ebx,4) では, cmp 0x02, 0xbffff684 であるから２つ目は "2" が正解.
+続いて,0x08048b88より %ebx = 0x02
+0x08048b89, 0x08048b8cでは,%ebx - 0x05 を計算して%ebxが0x05以下なら0x8048b76にジャンプする.
+現在はまだ0x02よりジャンプする.
+0x08048b76にて %eax = 0x03, 次の命令は Mem[0xbffff680 + 0x08 - 0x04] = 0x02より %eax = 0x06
+次の命令より, 0xbffff688には0x06より３つ目は "6" が正解.
+これを繰り返す.
+-------3順目 0xbffff68c-------
+%ebx = 0x03
+%eax = 0x04
+%eax = 0x04 * 0x06 = 24
+よって４つ目は "24" が正解.
+-------4順目 0xbffff690-------
+%ebx = 0x04
+%eax = 0x05
+%eax = 0x05 * 24 = 120
+よって５つ目は "120" が正解.
+-------5順目 0xbffff694-------
+%ebx = 0x05
+%eax = 0x06
+%eax = 0x06 * 120 = 720
+よって６つ目は "720" が正解.
+------------------------------
+したがってphase_2は "1 2 6 24 120 720" となる
+
