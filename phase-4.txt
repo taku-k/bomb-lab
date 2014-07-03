@@ -1,0 +1,85 @@
+関数phase_4をみていく.
+%edx には入力した文字列が入っている.
+%ebp = 0xbffff678
+
+-------------------------------------------------------
+   0x08048cec <+12>:  lea    -0x4(%ebp),%eax
+   0x08048cef <+15>:  push   %eax
+   0x08048cf0 <+16>:  push   $0x8049808
+   0x08048cf5 <+21>:  push   %edx
+   0x08048cf6 <+22>:  call   0x8048860 <sscanf@plt>
+-------------------------------------------------------
+まず, %eax = 0xbffff674
+関数sscanf(%edx, "%d", 0xbffff674)が呼び出される.
+
+
+
+-------------------------------------------------------
+   0x08048d03 <+35>:  cmpl   $0x0,-0x4(%ebp)
+   0x08048d07 <+39>:  jg     0x8048d0e <phase_4+46>
+   0x08048d09 <+41>:  call   0x80494fc <explode_bomb>
+   0x08048d0e <+46>:  add    $0xfffffff4,%esp
+   0x08048d11 <+49>:  mov    -0x4(%ebp),%eax
+   0x08048d14 <+52>:  push   %eax
+   0x08048d15 <+53>:  call   0x8048ca0 <func4>
+   0x08048d1a <+58>:  add    $0x10,%esp
+   0x08048d1d <+61>:  cmp    $0x37,%eax
+   0x08048d20 <+64>:  je     0x8048d27 <phase_4+71>
+   0x08048d22 <+66>:  call   0x80494fc <explode_bomb>
+   0x08048d27 <+71>:  mov    %ebp,%esp
+   0x08048d29 <+73>:  pop    %ebp
+   0x08048d2a <+74>:  ret  
+-------------------------------------------------------
+0xbffff674が正であれば0x08048d0eにジャンプする.
+そうでなければexplodeする.
+Mem[0xbffff674]を第一引数として関数func4を呼び出す.
+また処理が戻ってくると戻り値と0x37を比較して等しければexplodeしないことがわかる.
+
+--- func4 ---------------------------------------------
+   0x08048ca8 <+8>:  mov    0x8(%ebp),%ebx
+   0x08048cab <+11>: cmp    $0x1,%ebx
+   0x08048cae <+14>: jle    0x8048cd0 <func4+48>
+-------------------------------------------------------
+%ebx = (第一引数の値) を代入して0x1と比較している.
+%ebx <= 0x1 を満たせば0x8048cd0にジャンプする.
+   0x08048cd0 <+48>: mov    $0x1,%eax
+   0x08048cd5 <+53>: lea    -0x18(%ebp),%esp
+   0x08048cd8 <+56>: pop    %ebx
+   0x08048cd9 <+57>: pop    %esi
+   0x08048cda <+58>: mov    %ebp,%esp
+   0x08048cdc <+60>: pop    %ebp
+   0x08048cdd <+61>: ret 
+ジャンプ先を見ると%eax = 0x1として終了している.
+
+
+   0x08048cb0 <+16>: add    $0xfffffff4,%esp
+   0x08048cb3 <+19>: lea    -0x1(%ebx),%eax
+   0x08048cb6 <+22>: push   %eax
+   0x08048cb7 <+23>: call   0x8048ca0 <func4>
+%eax = %ebx - 0x1を計算してその値でfunc4(%eax)を呼び出している.
+
+   0x08048cbc <+28>: mov    %eax,%esi
+   0x08048cbe <+30>: add    $0xfffffff4,%esp
+   0x08048cc1 <+33>: lea    -0x2(%ebx),%eax
+   0x08048cc4 <+36>: push   %eax
+   0x08048cc5 <+37>: call   0x8048ca0 <func4>
+   0x08048cca <+42>: add    %esi,%eax
+   0x08048ccc <+44>: jmp    0x8048cd5 <func4+53>
+   0x08048cd5 <+53>: lea    -0x18(%ebp),%esp
+   0x08048cd8 <+56>: pop    %ebx
+   0x08048cd9 <+57>: pop    %esi
+   0x08048cda <+58>: mov    %ebp,%esp
+   0x08048cdc <+60>: pop    %ebp
+   0x08048cdd <+61>: ret    
+%eax = %ebx - 0x2を計算してその値でfunc4(%eax)を呼び出している.
+２つの再帰的に呼び出した関数func4の戻り値を足し合わせている.
+結局以下のような関数のアセンブリである.
+
+phase_4では0x36がほしいので入力としては "9" が正解.
+
+int func4(int n) {
+   if (n <= 1) return 1;
+   else {
+      return func4(n-1) + func(n-2);
+   }
+}
