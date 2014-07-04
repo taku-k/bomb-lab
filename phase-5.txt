@@ -1,0 +1,65 @@
+関数phase_5を見ていく.
+引数には入力した文字列が入る.
+
+   0x08048d34 <+8>: mov    0x8(%ebp),%ebx
+   0x08048d37 <+11>:  add    $0xfffffff4,%esp
+   0x08048d3a <+14>:  push   %ebx
+   0x08048d3b <+15>:  call   0x8049018 <string_length>
+string_lengthには入力した文字列が入り,この関数のアセンブリをよむと,
+文字列の長さが戻り値であることがわかる.
+
+   0x08048d43 <+23>:  cmp    $0x6,%eax
+   0x08048d46 <+26>:  je     0x8048d4d <phase_5+33>
+   0x08048d48 <+28>:  call   0x80494fc <explode_bomb>
+関数string_lengthが終了すると %eax には文字列の長さが格納されている.
+その長さと0x6を比較して等しくなければexplodeする.
+よって入力する文字列に長さは6である必要がある.
+
+   0x08048d4d <+33>:  xor    %edx,%edx
+   0x08048d4f <+35>:  lea    -0x8(%ebp),%ecx
+   0x08048d52 <+38>:  mov    $0x804b220,%esi
+   0x08048d57 <+43>:  mov    (%edx,%ebx,1),%al
+   0x08048d5a <+46>:  and    $0xf,%al
+   0x08048d5c <+48>:  movsbl %al,%eax
+%ecxには %ebp - 0x8 =  0xbffff688 - 0x8 = 0xbffff680 が格納される.
+%esiには "isrveawhobpnutfg\260\001" が格納される.
+%al(1byte) = Mem[%edx + %ebx] が格納される.
+ここで%ebxには入力した文字列, %edxで先頭から何番目の文字が指定して
+その文字のアスキーコードが%alに格納される.
+and $0xf,%al によって1バイト目だけが抽出される.
+movsbl命令は8bitを32bitに符号拡張して格納する.
+上の２つの命令によって結局%eaxには, 0,...,15のどれかが入る.
+
+   0x08048d5f <+51>:  mov    (%eax,%esi,1),%al
+   0x08048d62 <+54>:  mov    %al,(%edx,%ecx,1)
+   0x08048d65 <+57>:  inc    %edx
+   0x08048d66 <+58>:  cmp    $0x5,%edx
+   0x08048d69 <+61>:  jle    0x8048d57 <phase_5+43>
+%alには %esi = "isrveawhobpnutfg\260\001" のうち%eax番目の文字のアスキーコードが格納される.
+%edxをインクリメントして入力文字列(%edx)の次の文字を見ていく.
+これを入力文字列すべてに対して行い, %alの値を0xbffff680, 0xbffff681, 0xbffff682, 0xbffff683,
+0xbffff684, 0xbffff685の順に格納していく.
+
+   0x08048d6b <+63>:  movb   $0x0,-0x2(%ebp)
+文字列0xbffff680の末尾(0xbffff686)に'\0'をいれる.
+
+   0x08048d6f <+67>:  add    $0xfffffff8,%esp
+   0x08048d72 <+70>:  push   $0x804980b
+Mem[0x804980b]の文字列 "giants"が正解の文字列.これをスタックに積む.
+
+   0x08048d77 <+75>:  lea    -0x8(%ebp),%eax
+   0x08048d7a <+78>:  push   %eax
+   0x08048d7b <+79>:  call   0x8049030 <strings_not_equal>
+文字列0xbffff680をスタックに積んで関数string_not_equalを呼び出す.
+この関数は２つの文字列を比較して異なれば%eax = 1, 
+一致すれば%eax = 0を格納する.
+
+   0x08048d80 <+84>:  add    $0x10,%esp
+   0x08048d83 <+87>:  test   %eax,%eax
+   0x08048d85 <+89>:  je     0x8048d8c <phase_5+96>
+フラグZFが1ならばje命令によってexplodeせず終了する.
+よって%eaxが0であればいいので, 結局 0xbffff680 が "giants"であればいい.
+そのためには "isrveawhobpnutfg\260\001"
+15, 0, 5, 11, 13, 1
+アスキーコード表より
+"?05;=1" が正解.
